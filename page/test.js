@@ -1,1 +1,1 @@
-console.info('this is test.js');
+{"result":123}
