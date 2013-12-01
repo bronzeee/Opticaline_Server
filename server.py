@@ -10,8 +10,10 @@ import platform
 import re
 import logging
 import logging.config
+import uuid
 from ol_const import static
 import json
+import datetime
 
 logging.config.fileConfig('logging.conf')
 # create logger
@@ -29,10 +31,26 @@ portNum = 8080
 # if platform.system() == 'Windows':
 #     output = os.popen('netstat -aon|findstr ":"' + str(portNum)).readlines()
 #     for i in output:
-# os.popen('taskkill /f /pid ' + re.split('\s+', i.strip())[4])
+#         os.popen('taskkill /f /pid ' + re.split('\s+', i.strip())[4])
 #         pass
 
 assets = 'page'
+
+
+class SessionScope():
+    sessions = {}
+
+    def createSession(self):
+        sessionId = str(uuid.uuid4())
+        self.sessions[sessionId] = {'createTime': datetime.datetime.now()}
+        print(self.sessions)
+        return sessionId
+
+    def getSession(self, sessionId):
+        return sessions[sessionId]
+
+sessionScope = SessionScope()
+sessionScope.createSession()
 
 
 class OpticalineServer(BaseHTTPRequestHandler):
