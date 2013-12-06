@@ -116,6 +116,7 @@ class ThreadingHttpServer(ThreadingMixIn, HTTPServer):
     pass
 
 print("start server with %d port" % portNum)
+
 myServer = ThreadingHttpServer((hostIP, portNum), OpticalineServer)
 myServer.serve_forever()
 myServer.server_close()
