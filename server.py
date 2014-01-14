@@ -14,6 +14,7 @@ import uuid
 from ol_const import static
 import json
 import datetime
+from http import cookies
 
 logging.config.fileConfig('logging.conf')
 # create logger
@@ -25,8 +26,8 @@ logger.debug('load server.xml')
 for child in tree:
     mime_mappings[child.attrib['extension']] = child.attrib['mime-type']
 
-hostIP = 'localhost'
-portNum = 8080
+hostIP = '192.168.1.130'
+portNum = 8081
 
 # if platform.system() == 'Windows':
 #     output = os.popen('netstat -aon|findstr ":"' + str(portNum)).readlines()
@@ -47,7 +48,7 @@ class SessionScope():
         return sessionId
 
     def getSession(self, sessionId):
-        return sessions[sessionId]
+        return self.sessions[sessionId]
 
 sessionScope = SessionScope()
 sessionScope.createSession()
@@ -56,9 +57,10 @@ sessionScope.createSession()
 class OpticalineServer(BaseHTTPRequestHandler):
 
     def do_head(self):
-        analysis(static.method.HEAD)
+        self.analysis(static.method.HEAD)
 
     def do_GET(self):
+        #print(self.headers.items())
         self.analysis(static.method.GET)
 
     def do_POST(self):
@@ -72,6 +74,18 @@ class OpticalineServer(BaseHTTPRequestHandler):
         if(os.path.isfile(assets + request.path)):
             response = self.request_file(assets + request.path)
         else:
+            cookie = self.headers.get('Cookie') or ""
+            if len(cookie) > 0:
+                cookie = {a.split("=")[0]:a.split("=")[1] for a in cookie.split(";")}
+            else:
+                cookie = {}
+
+            if not cookie.get('SESSIONID') :
+                cookie['SESSIONID'] = sessionScope.createSession()
+                #JSESSIONID=86D6E5C39785133684568CDE3A9984EC; Path=/ylbl/; HttpOnly
+                self.send_header("Set-Cookie", "SESSIONID=" + cookie['SESSIONID'] + "; Path=/; HttpOnly")
+            session = sessionScope.getSession(cookie['SESSIONID'])
+            print(session)
             response = self.request_dynamic(method)
         self.send_header("Content-Length", str(len(response)))
         self.end_headers()
@@ -80,19 +94,20 @@ class OpticalineServer(BaseHTTPRequestHandler):
     def request_dynamic(self, method):
         logger.debug('same connect do method - %s' % method)
         self.send_response(200, message=None)
-        self.send_header('Content-type', 'text/json')
         request = urlparse(self.path)
         if method == static.method.GET:
-            params = urllib.parse.parse_qs(urllib.parse.unquote(request.query))
+            params = urllib.parse.unquote(request.query)
         else:
             length = int(self.headers['Content-Length'])
-            params = urllib.parse.parse_qs(
-                self.rfile.read(length).decode('utf-8'))
-
+            params = self.rfile.read(length).decode('utf-8')
         params = self.__param_easy_2_use(params)
-
         # TODO 调用 controller处理对应请求
-        return '{"name":"lilei"}'.encode(encoding='utf_8', errors='strict')
+        extension = os.path.splitext(request.path)[1]
+        if extension == '':
+            extension = '*'
+        print(os.path.splitext(request.path)[0])
+        self.send_header('Content-type', mime_mappings[extension])
+        return '{"name":"lilei2"}'.encode(encoding='utf_8', errors='strict')
 
     def request_file(self, filePath):
         try:
@@ -106,6 +121,7 @@ class OpticalineServer(BaseHTTPRequestHandler):
             self.send_error(404, message=None)
 
     def __param_easy_2_use(self, params):
+        params = urllib.parse.parse_qs(params)
         for key in params.keys():
             if len(params[key]) == 1:
                 params[key] = params[key][0]
